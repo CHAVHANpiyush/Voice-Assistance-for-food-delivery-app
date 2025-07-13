@@ -1,0 +1,7 @@
+requests
+speechrecognition
+langchain
+langchain-ollama
+pydub
+python-dotenv
+gradio
