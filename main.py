@@ -6,12 +6,15 @@ from pydub import AudioSegment
 from pydub.playback import play
 from io import BytesIO
 
-# ElevenLabs API details
-API_KEY = "sk_b491c10c3efd6c4200b203c238d14b6160086a1a03a10aae"
-API_URL = "https://api.elevenlabs.io/v1/text-to-speech"
-VOICE_ID = "21m00Tcm4TlvDq8ikWAM"  # Replace with a valid voice ID
+import os
+from dotenv import load_dotenv
 
-# Prompt template for the chatbot
+load_dotenv()
+# ElevenLabs API details
+API_KEY = os.getenv("API_KEY")
+API_URL = "https://api.elevenlabs.io/v1/text-to-speech"
+VOICE_ID = "21m00Tcm4TlvDq8ikWAM"
+
 template = """
 You are a helpful support chatbot for a food delivery app. 
 Your job is to assist users with their queries, such as 
@@ -24,13 +27,12 @@ User's Question: {question}
 Support Answer:
 """
 
-# Initialize the AI model
 model = OllamaLLM(model="llama3.2")
 prompt = ChatPromptTemplate.from_template(template)
 chain = prompt | model
 
 # Function to synthesize speech using ElevenLabs
-def say_with_elevenlabs(text):
+def say_with_elevenlabs(text, filename="output.mp3"):
     headers = {
         "accept": "audio/mpeg",
         "xi-api-key": API_KEY,
@@ -46,12 +48,17 @@ def say_with_elevenlabs(text):
     response = requests.post(f"{API_URL}/{VOICE_ID}", json=payload, headers=headers)
 
     if response.status_code == 200:
-        audio = AudioSegment.from_file(BytesIO(response.content), format="mp3")
-        play(audio)
+        with open(filename, "wb") as f:
+            f.write(response.content)
+        return filename
     else:
-        print(f"Error: {response.status_code} - {response.text}")
+        print(f"Error: {response.status_code}")
+        return None
 
 # Function to capture user input via speech
+def get_chat_response(user_input, history):
+    result = chain.invoke({"history": history, "question": user_input}).strip()
+    return result
 def get_voice_input():
     recognizer = sr.Recognizer()
     with sr.Microphone() as source:
@@ -69,7 +76,6 @@ def get_voice_input():
             say_with_elevenlabs("There seems to be an issue with the speech recognition service.")
             return None
 
-# Main function to handle the chatbot logic
 def handle_food_delivery_support():
     history = ""
     print("Welcome to Swiggato Support! Say 'exit' to quit.")
